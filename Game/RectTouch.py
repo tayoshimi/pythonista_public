@@ -10,17 +10,18 @@ from ImageColor import getrgb
 A = Action
 
 SQUARE_SIZE = 20
-UP_DOWN_SPASE = 24
+UP_DOWN_SPASE = 40
 
 class Square (ShapeNode):
     id = -1
-    def __init__(self, size = SQUARE_SIZE, fill_color = '#fcffb3', touch_color = '#ee1818', *args, **kwargs):
+    def __init__(self, size = SQUARE_SIZE, normal_color = '#fcffb3', touch_color = '#ee1818', select_color = '#ffe999', *args, **kwargs):
         self.size = Size(size, size)
         self.touch_in = False
-        self.org_color = fill_color
+        self.normal_color = normal_color
         self.touch_color = touch_color
+        self.select_color = select_color
         path = ui.Path.rect(0, 0, size, size)
-        ShapeNode.__init__(self, path, fill_color, 'clear', None, *args, **kwargs)
+        ShapeNode.__init__(self, path, self.normal_color, 'clear', None, *args, **kwargs)
         
         # Display square's number.
         self.label_node = LabelNode(str(Square.id), font=('<System>', 10), parent = self)
@@ -35,6 +36,7 @@ class Square (ShapeNode):
             return True
         else:
             return False
+
     
     def touch_began(self, touch):
         if self.is_touch_in(touch) and not self.touch_in:
@@ -49,21 +51,27 @@ class Square (ShapeNode):
         elif not self.is_touch_in(touch) and self.touch_in:
             self.touch_ended(touch)
 
+
     def touch_ended(self, touch):
-        if self.fill_color != self.org_color and self.touch_in:
+        if self.fill_color != self.normal_color and self.touch_in:
             self.touch_in = False
-            self.run_action(A.sequence(A.call(self.colorlize_action, 1.0), A.call(self.set_org_color)))
+            self.start_colorlize_action(self.touch_color, self.select_color)
             
-    def set_org_color(self):
-        self.fill_color = self.org_color
-   
-    # Colorize custom action function     
+    def set_target_color(self):
+        self.fill_color = self.target_color
+                
+    def start_colorlize_action(self, origin_color, target_color):
+        self.origin_color = origin_color
+        self.target_color = target_color
+        self.run_action(A.sequence(A.call(self.colorlize_action, 1.0), A.call(self.set_target_color)))
+        
+    # Colorize custom action function       
     def colorlize_action(self, node, progress):
-        org_r, org_g, org_b = getrgb(self.org_color)
-        t_r, t_g, t_b = getrgb(self.touch_color)
-        dst_r = (t_r * (1.0 - progress) + org_r * progress)
-        dst_g = (t_g * (1.0 - progress) + org_g * progress)
-        dst_b = (t_b * (1.0 - progress) + org_b * progress)
+        org_r, org_g, org_b = getrgb(self.origin_color)
+        t_r, t_g, t_b = getrgb(self.target_color)
+        dst_r = (t_r * progress + org_r * (1.0 - progress))
+        dst_g = (t_g * progress + org_g * (1.0 - progress))
+        dst_b = (t_b * progress + org_b * (1.0 - progress))
         #print(str(dst_r) +','+str(dst_g)+','+str(dst_b))
         self.fill_color = '#%.02X%.02X%.02X' % (int(dst_r), int(dst_g), int(dst_b))
 
@@ -72,9 +80,7 @@ class MyScene (Scene):
     def setup(self):
         self.background_color = '#0d0d0d'
         self.squares = []
-        
-        
-        
+               
         i_max = int(self.size.w / SQUARE_SIZE - 0.5) - 2
         j_max = int((self.size.h - UP_DOWN_SPASE * 2 ) / SQUARE_SIZE - 0.5)
         
